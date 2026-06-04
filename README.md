@@ -1,12 +1,12 @@
 # Mood-Detection-Classification-Project
 
-A real-time facial mood detector. It finds faces in a webcam feed, classifies each face's mood into one of three groups — **Positive**, **Negative**, or **Neutral** — and displays the result with a confidence score.
+A real-time facial mood detector. It finds faces in a webcam feed or uploaded image, classifies each face's mood into one of three groups — **Positive**, **Negative**, or **Neutral** — and displays the result with a confidence score.
 
 ## How It Works
 
 The system runs a two-stage pipeline on each video frame:
 
-1. **Face detection** (`src/face_detection.py`) — uses OpenCV's Haar Cascade classifier to locate faces and crop them out of the frame.
+1. **Face detection** (`src/face_detection.py`) — uses DeepFace's YuNet detector to locate faces and crop them out of the frame.
 2. **Mood classification** (`src/predict.py`) — passes each cropped face to DeepFace's pre-trained emotion model, which returns seven emotion scores. These are folded into three groups, and the strongest group is reported with its confidence.
 
 The entry point (`src/app.py`) ties the two stages together and draws the labeled results onto the live video.
@@ -23,12 +23,14 @@ The entry point (`src/app.py`) ties the two stages together and draws the labele
 
 ```
 src/
-  face_detection.py   # detect and crop faces (OpenCV Haar Cascade)
+  face_detection.py   # detect and crop faces (DeepFace YuNet)
   predict.py          # classify mood with DeepFace, group into 3 categories
-  app.py              # entry point: runs the webcam pipeline
+  app.py              # entry point: runs the webcam/image/video pipeline
 api.py                # Flask REST API for the web frontend
 frontend/
-  index.html          # web UI (camera mode + image upload)
+  index.html          # page structure
+  style.css           # all styling
+  app.js              # all JavaScript (camera loop, upload, results)
 data/                 # placeholder (for a future custom-model dataset)
 models/               # placeholder (for a future custom-trained model)
 notebooks/            # placeholder (for experiments)
@@ -88,19 +90,25 @@ Labeled output images are saved to the `outputs/` folder automatically.
 
 The project includes a browser-based UI with live camera mode and image upload.
 
-**1. Start the API server** from the project root:
+**Start the API server** from the project root:
 ```
 python api.py
 ```
 
-**2. Open the frontend** — simply open `frontend/index.html` in your browser.
+Your browser will open automatically at `http://localhost:5000`. From there you can:
 
-The UI will show a **connected** indicator in the top-right once it reaches the API. From there you can:
+- **Camera mode** — streams your webcam live at 60fps with mood labels overlaid directly on the video. The API is polled every 0.5 seconds in the background to update the detections without interrupting the feed.
+- **Upload mode** — drag and drop (or browse for) an image and click **Analyze** to get mood labels drawn over each detected face.
 
-- **Camera mode** — streams your webcam to the API and shows mood labels live
-- **Upload mode** — drag and drop (or browse for) an image and click **Analyze**
+Both modes use colour-coded labels:
 
-The API runs on `http://localhost:5000` by default. You can change this in the URL bar at the top of the frontend page.
+| Colour | Mood |
+|--------|------|
+| 🟢 Green | Positive |
+| 🔴 Red | Negative |
+| 🟣 Purple | Neutral |
+
+The **Detection Results** panel on the right shows each detected face with its mood and a confidence bar. The **Session Stats** panel shows how many frames have been analyzed and how many faces are currently detected.
 
 ## Notes
 
@@ -110,10 +118,11 @@ The API runs on `http://localhost:5000` by default. You can change this in the U
 ## Tech Stack
 
 - Python 3.13
-- OpenCV — face detection
-- DeepFace + TensorFlow / tf-keras — emotion classification
+- OpenCV — image processing
+- DeepFace + TensorFlow / tf-keras — face detection and emotion classification
 - NumPy
 - Flask + flask-cors — REST API for the web frontend
+- HTML / CSS / JavaScript — web frontend
 
 ## Team
 
