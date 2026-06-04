@@ -6,7 +6,6 @@
 <title>MoodScan</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="style.css" />
-<script src="app.js"></script>
 </head>
 <body>
 
@@ -57,14 +56,20 @@
         </div>
 
         <!-- Upload mode -->
-        <div id="upload-panel" style="display:none; width:100%;">
+        <div id="upload-panel" style="display:none; width:100%; position:relative;">
           <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-            <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.bmp,.webp" onchange="handleFileSelect(event)" />
+            <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.bmp,.webp,.mp4,.avi,.mov,.mkv" onchange="handleFileSelect(event)" />
             <div class="upload-icon">🖼</div>
-            <p>Drop an image here or click to browse</p>
-            <strong>JPG · PNG · BMP · WEBP</strong>
+            <p>Drop an image or video here or click to browse</p>
+            <strong>JPG · PNG · BMP · WEBP · MP4 · AVI · MOV · MKV</strong>
           </div>
+          <!-- Image preview -->
           <img id="preview-img" style="display:none; width:100%; max-height:480px; object-fit:contain;" alt="Preview" />
+          <!-- Video preview with canvas overlay -->
+          <div style="position:relative; width:100%;">
+            <video id="preview-video" style="display:none; width:100%; max-height:480px;" playsinline></video>
+            <canvas id="video-overlay-canvas" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></canvas>
+          </div>
         </div>
 
         <!-- Loading overlay -->
@@ -87,6 +92,9 @@
       <div class="viewer-actions" id="upload-controls" style="display:none;">
         <button class="btn btn-primary" id="btn-analyze-img" onclick="analyzeImage()" disabled>🔍 Analyze</button>
         <button class="btn btn-secondary" onclick="clearImage()">✕ Clear</button>
+        <div class="live-badge" id="live-badge-upload" style="display:none; margin-left:auto;">
+          <div class="live-dot"></div> ANALYZING
+        </div>
       </div>
     </div>
 

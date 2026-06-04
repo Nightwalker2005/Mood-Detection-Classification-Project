@@ -1,15 +1,15 @@
 # Mood-Detection-Classification-Project
 
-A real-time facial mood detector. It finds faces in a webcam feed or uploaded image, classifies each face's mood into one of three groups — **Positive**, **Negative**, or **Neutral** — and displays the result with a confidence score.
+A real-time facial mood detector. It finds faces in a webcam feed, uploaded image, or uploaded video, classifies each face's mood into one of three groups — **Positive**, **Negative**, or **Neutral** — and displays the result with a confidence score.
 
 ## How It Works
 
-The system runs a two-stage pipeline on each video frame:
+The system runs a two-stage pipeline on each frame:
 
 1. **Face detection** (`src/face_detection.py`) — uses DeepFace's YuNet detector to locate faces and crop them out of the frame.
 2. **Mood classification** (`src/predict.py`) — passes each cropped face to DeepFace's pre-trained emotion model, which returns seven emotion scores. These are folded into three groups, and the strongest group is reported with its confidence.
 
-The entry point (`src/app.py`) ties the two stages together and draws the labeled results onto the live video.
+The entry point (`src/app.py`) ties the two stages together for the command-line pipeline. The web frontend uses `api.py` as its backend.
 
 ### Emotion grouping
 
@@ -30,7 +30,7 @@ api.py                # Flask REST API for the web frontend
 frontend/
   index.html          # page structure
   style.css           # all styling
-  app.js              # all JavaScript (camera loop, upload, results)
+  app.js              # all JavaScript (camera loop, video, upload, results)
 data/                 # placeholder (for a future custom-model dataset)
 models/               # placeholder (for a future custom-trained model)
 notebooks/            # placeholder (for experiments)
@@ -70,7 +70,7 @@ Run from the project root:
 python src\app.py
 ```
 
-A webcam window opens with a green box and a mood label (e.g. `Positive (87%)`) over each detected face. Press **q** in the window to quit.
+A webcam window opens with a colour-coded box and mood label (e.g. `Positive (87%)`) over each detected face. Press **q** in the window to quit.
 
 You can also process images or videos directly:
 
@@ -81,6 +81,7 @@ You can also process images or videos directly:
 | `python src\app.py pick` | Open a file picker to select an image or video |
 
 Supported image formats: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`
+Supported video formats: `.mp4`, `.avi`, `.mov`, `.mkv`
 
 Labeled output images are saved to the `outputs/` folder automatically.
 
@@ -88,7 +89,7 @@ Labeled output images are saved to the `outputs/` folder automatically.
 
 ### Web frontend
 
-The project includes a browser-based UI with live camera mode and image upload.
+The project includes a browser-based UI with three input modes.
 
 **Start the API server** from the project root:
 ```
@@ -97,23 +98,31 @@ python api.py
 
 Your browser will open automatically at `http://localhost:5000`. From there you can:
 
-- **Camera mode** — streams your webcam live at 60fps with mood labels overlaid directly on the video. The API is polled every 0.5 seconds in the background to update the detections without interrupting the feed.
-- **Upload mode** — drag and drop (or browse for) an image and click **Analyze** to get mood labels drawn over each detected face.
+**📷 Camera mode**
+Streams your webcam live at 60fps with mood labels overlaid directly on the video. The API is polled every 0.5 seconds in the background to update detections without interrupting the feed.
 
-Both modes use colour-coded labels:
+**🖼 Upload mode — Image**
+Drag and drop or browse for an image and click **Analyze**. Colour-coded boxes and labels are drawn over each detected face.
+
+**🎬 Upload mode — Video**
+Drag and drop or browse for a video file. Click **▶ Play & Analyze** to start playback with live mood labels overlaid as the video plays. Click **⏹ Stop** to pause and rewind — click **▶ Play & Analyze** again to replay from the beginning. Click **✕ Clear** to remove the video entirely.
+
+All three modes use colour-coded labels:
 
 | Colour | Mood |
 |--------|------|
 | 🟢 Green | Positive |
 | 🔴 Red | Negative |
 | 🟣 Purple | Neutral |
+| ⚫ Grey | Unknown |
 
-The **Detection Results** panel on the right shows each detected face with its mood and a confidence bar. The **Session Stats** panel shows how many frames have been analyzed and how many faces are currently detected.
+The **Detection Results** panel shows each detected face with its mood and a confidence bar. The **Session Stats** panel shows how many frames have been analyzed and how many faces are currently detected in the latest frame.
 
 ## Notes
 
 - `predict.py` sets `TF_USE_LEGACY_KERAS=1` so DeepFace works with the Keras 3 bundled in recent TensorFlow, and stores model weights in an ASCII-only path. These are handled in code — no extra setup needed.
 - The emotion model is trained on FER-2013. Like most models trained on it, it can read calm or concentrating faces as sad/negative; clear expressions (a big smile, a frown) classify more reliably.
+- If DeepFace fails to analyze a face crop (e.g. too blurry or too small), it returns **Unknown (0%)** and continues without crashing.
 
 ## Tech Stack
 

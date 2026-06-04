@@ -1,16 +1,24 @@
 // ── State ─────────────────────────────────────────────────
 let mode = 'camera';
 let cameraActive = false;
+let videoActive = false;
 let cameraInterval = null;
+let videoInterval = null;
 let frameCount = 0;
 let selectedFile = null;
 let sendingFrame = false;
 let lastFaces = [];
 let rafId = null;
+let videoRafId = null;
 
 // ── Helpers ───────────────────────────────────────────────
 function getServerUrl() {
   return window.location.origin;
+}
+
+function isVideoFile(file) {
+  return ['video/mp4', 'video/avi', 'video/quicktime', 'video/x-matroska'].includes(file.type)
+      || /\.(mp4|avi|mov|mkv)$/i.test(file.name);
 }
 
 // ── Health check ──────────────────────────────────────────
@@ -39,10 +47,11 @@ function setMode(m) {
   document.getElementById('upload-panel').style.display = m === 'upload' ? 'block' : 'none';
   document.getElementById('cam-controls').style.display = m === 'camera' ? 'flex' : 'none';
   document.getElementById('upload-controls').style.display = m === 'upload' ? 'flex' : 'none';
-  document.getElementById('viewer-label').textContent = m === 'camera' ? 'LIVE FEED' : 'IMAGE';
+  document.getElementById('viewer-label').textContent = m === 'camera' ? 'LIVE FEED' : 'UPLOAD';
   document.getElementById('stat-mode').textContent = m === 'camera' ? 'Camera' : 'Upload';
 
   if (m === 'upload' && cameraActive) stopCamera();
+  if (m === 'camera') stopVideo(true);
   clearResults();
 }
 
@@ -67,7 +76,7 @@ async function startCamera() {
       canvas.height = video.videoHeight;
       canvas.style.display = 'block';
       drawLoop();
-      cameraInterval = setInterval(pollApi, 500); // API call every 0.5s
+      cameraInterval = setInterval(pollApi, 500);
     };
   } catch (e) {
     showToast('Camera access denied. Please allow camera permissions.');
@@ -97,46 +106,96 @@ function drawLoop() {
   const video = document.getElementById('webcam-raw');
   const canvas = document.getElementById('overlay-canvas');
   const ctx = canvas.getContext('2d');
-
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  for (const face of lastFaces) {
-    const { x, y, w, h } = face.box;
-    const color = face.mood === 'Positive' ? '#00e5a0'
-                : face.mood === 'Negative' ? '#ff4d6d'
-                : face.mood === 'Neutral'  ? '#7b61ff'
-                : '#6b6b80';
-
-    // Box
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
-
-    // Label background
-    const label = `${face.mood} (${face.confidence}%)`;
-    ctx.font = 'bold 14px Syne, sans-serif';
-    const textW = ctx.measureText(label).width;
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y - 24, textW + 12, 22);
-
-    // Label text
-    ctx.fillStyle = face.mood === 'Neutral' ? '#fff' : '#000';
-    ctx.fillText(label, x + 6, y - 7);
-  }
-
+  drawFaceOverlays(ctx, lastFaces);
   if (cameraActive) rafId = requestAnimationFrame(drawLoop);
 }
 
-// Sends a frame to the API in the background — doesn't block the render loop
+// Sends a frame to the API in the background
 async function pollApi() {
   if (sendingFrame) return;
   const video = document.getElementById('webcam-raw');
   if (video.readyState < 2 || video.videoWidth === 0) return;
+  await sendVideoFrame(video);
+}
 
+// ── Video upload ──────────────────────────────────────────
+function loadVideo(file) {
+  selectedFile = file;
+  const url = URL.createObjectURL(file);
+  const video = document.getElementById('preview-video');
+  video.src = url;
+  video.style.display = 'block';
+  document.getElementById('video-overlay-canvas').style.display = 'block';
+  document.getElementById('drop-zone').style.display = 'none';
+  document.getElementById('preview-img').style.display = 'none';
+  document.getElementById('btn-analyze-img').disabled = false;
+  document.getElementById('viewer-label').textContent = 'VIDEO';
+
+  video.onloadedmetadata = () => {
+    const canvas = document.getElementById('video-overlay-canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  };
+}
+
+function startVideoAnalysis() {
+  const video = document.getElementById('preview-video');
+  if (!video.src) return;
+  video.play();
+  videoActive = true;
+  sendingFrame = false;
+  lastFaces = [];
+  document.getElementById('live-badge-upload').style.display = 'flex';
+
+  // Draw loop for video overlay
+  function videoDrawLoop() {
+    if (!videoActive) return;
+    const canvas = document.getElementById('video-overlay-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    drawFaceOverlays(ctx, lastFaces);
+    if (!video.paused && !video.ended) {
+      videoRafId = requestAnimationFrame(videoDrawLoop);
+    }
+  }
+  videoDrawLoop();
+  videoInterval = setInterval(() => pollVideoApi(video), 500);
+}
+
+function stopVideo(clearSrc = false) {
+  clearInterval(videoInterval);
+  if (videoRafId) cancelAnimationFrame(videoRafId);
+  videoRafId = null;
+  videoActive = false;
+  sendingFrame = false;
+  lastFaces = [];
+  const video = document.getElementById('preview-video');
+  if (video) {
+    video.pause();
+    if (clearSrc) {
+      video.src = '';
+      document.getElementById('preview-video').style.display = 'none';
+      document.getElementById('video-overlay-canvas').style.display = 'none';
+    } else {
+      // Reset to beginning so it can be replayed
+      video.currentTime = 0;
+    }
+  }
+  document.getElementById('live-badge-upload').style.display = 'none';
+}
+
+async function pollVideoApi(video) {
+  if (sendingFrame || video.paused || video.ended) return;
+  await sendVideoFrame(video);
+}
+
+// ── Shared frame sender ───────────────────────────────────
+async function sendVideoFrame(videoEl) {
   const canvas = document.getElementById('capture-canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.width = videoEl.videoWidth;
+  canvas.height = videoEl.videoHeight;
+  canvas.getContext('2d').drawImage(videoEl, 0, 0);
   const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
 
   sendingFrame = true;
@@ -162,7 +221,30 @@ async function pollApi() {
   }
 }
 
-// ── Image upload ──────────────────────────────────────────
+// ── Draw overlays (shared by camera + video) ──────────────
+function drawFaceOverlays(ctx, faces) {
+  for (const face of faces) {
+    const { x, y, w, h } = face.box;
+    const color = face.mood === 'Positive' ? '#00e5a0'
+                : face.mood === 'Negative' ? '#ff4d6d'
+                : face.mood === 'Neutral'  ? '#7b61ff'
+                : '#6b6b80';
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+
+    const label = `${face.mood} (${face.confidence}%)`;
+    ctx.font = 'bold 14px Syne, sans-serif';
+    const textW = ctx.measureText(label).width;
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y - 24, textW + 12, 22);
+    ctx.fillStyle = face.mood === 'Neutral' ? '#fff' : '#000';
+    ctx.fillText(label, x + 6, y - 7);
+  }
+}
+
+// ── Image/Video file loading ──────────────────────────────
 function handleFileSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -170,20 +252,43 @@ function handleFileSelect(event) {
 }
 
 function loadFile(file) {
+  stopVideo();
   selectedFile = file;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.getElementById('preview-img');
-    img.src = e.target.result;
-    img.style.display = 'block';
-    document.getElementById('drop-zone').style.display = 'none';
-    document.getElementById('btn-analyze-img').disabled = false;
-  };
-  reader.readAsDataURL(file);
+
+  if (isVideoFile(file)) {
+    document.getElementById('preview-img').style.display = 'none';
+    loadVideo(file);
+  } else {
+    document.getElementById('preview-video').style.display = 'none';
+    document.getElementById('video-overlay-canvas').style.display = 'none';
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('preview-img');
+      img.src = e.target.result;
+      img.style.display = 'block';
+      document.getElementById('drop-zone').style.display = 'none';
+      document.getElementById('btn-analyze-img').disabled = false;
+      document.getElementById('viewer-label').textContent = 'IMAGE';
+    };
+    reader.readAsDataURL(file);
+  }
 }
 
 async function analyzeImage() {
   if (!selectedFile) return;
+
+  // If it's a video, start the video analysis loop instead
+  if (isVideoFile(selectedFile)) {
+    startVideoAnalysis();
+    document.getElementById('btn-analyze-img').textContent = '⏹ Stop Video';
+    document.getElementById('btn-analyze-img').onclick = () => {
+      stopVideo();
+      document.getElementById('btn-analyze-img').textContent = '▶ Play & Analyze';
+      document.getElementById('btn-analyze-img').onclick = analyzeImage;
+    };
+    return;
+  }
+
   if (!(await checkHealth())) { showToast('Cannot reach API server. Is it running?'); return; }
 
   document.getElementById('spinner').classList.add('show');
@@ -203,45 +308,18 @@ async function analyzeImage() {
 
     if (data.labeled_image) {
       const img = document.getElementById('preview-img');
-      const src = 'data:image/jpeg;base64,' + data.labeled_image;
-
-      // Draw colour-coded boxes on top of the returned image
       const tempImg = new Image();
       tempImg.onload = () => {
-        // Create a canvas the same size as the image
         const canvas = document.createElement('canvas');
         canvas.width = tempImg.naturalWidth;
         canvas.height = tempImg.naturalHeight;
         const ctx = canvas.getContext('2d');
-
-        // Draw the base image (without OpenCV boxes)
         ctx.drawImage(tempImg, 0, 0);
-
-        // Draw colour-coded boxes and labels
-        for (const face of data.faces) {
-          const { x, y, w, h } = face.box;
-          const color = face.mood === 'Positive' ? '#00e5a0'
-                      : face.mood === 'Negative' ? '#ff4d6d'
-                      : face.mood === 'Neutral'  ? '#7b61ff'
-                      : '#6b6b80';
-
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
-          ctx.strokeRect(x, y, w, h);
-
-          const label = `${face.mood} (${face.confidence}%)`;
-          ctx.font = 'bold 14px Syne, sans-serif';
-          const textW = ctx.measureText(label).width;
-          ctx.fillStyle = color;
-          ctx.fillRect(x, y - 24, textW + 12, 22);
-          ctx.fillStyle = face.mood === 'Neutral' ? '#fff' : '#000';
-          ctx.fillText(label, x + 6, y - 7);
-        }
-
+        drawFaceOverlays(ctx, data.faces);
         img.src = canvas.toDataURL('image/jpeg', 0.95);
         img.style.display = 'block';
       };
-      tempImg.src = src;
+      tempImg.src = 'data:image/jpeg;base64,' + data.labeled_image;
     }
 
     frameCount++;
@@ -258,13 +336,20 @@ async function analyzeImage() {
 }
 
 function clearImage() {
+  stopVideo(true);
   selectedFile = null;
   document.getElementById('preview-img').style.display = 'none';
   document.getElementById('preview-img').src = '';
+  document.getElementById('preview-video').style.display = 'none';
+  document.getElementById('video-overlay-canvas').style.display = 'none';
   document.getElementById('drop-zone').style.display = 'block';
   document.getElementById('file-input').value = '';
   document.getElementById('btn-analyze-img').disabled = true;
+  document.getElementById('btn-analyze-img').textContent = '🔍 Analyze';
+  document.getElementById('btn-analyze-img').onclick = analyzeImage;
   document.getElementById('frame-counter').textContent = '—';
+  document.getElementById('viewer-label').textContent = 'UPLOAD';
+  document.getElementById('live-badge-upload').style.display = 'none';
   clearResults();
 }
 
@@ -280,7 +365,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (file) loadFile(file);
   });
 
-  // Init
   checkHealth();
   setInterval(checkHealth, 15000);
 });
