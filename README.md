@@ -26,6 +26,9 @@ src/
   face_detection.py   # detect and crop faces (OpenCV Haar Cascade)
   predict.py          # classify mood with DeepFace, group into 3 categories
   app.py              # entry point: runs the webcam pipeline
+api.py                # Flask REST API for the web frontend
+frontend/
+  index.html          # web UI (camera mode + image upload)
 data/                 # placeholder (for a future custom-model dataset)
 models/               # placeholder (for a future custom-trained model)
 notebooks/            # placeholder (for experiments)
@@ -39,21 +42,25 @@ requirements.txt      # Python dependencies
 **Requires Python 3.13** (TensorFlow does not yet support Python 3.14).
 
 1. Clone the repository:
-```
+   ```
    git clone https://github.com/Nightwalker2005/Mood-Detection-Classification-Project.git
    cd Mood-Detection-Classification-Project
-```
+   ```
+
 2. Create and activate a virtual environment with Python 3.13:
-```
+   ```
    py -3.13 -m venv venv
    venv\Scripts\activate
-```
+   ```
+
 3. Install dependencies:
-```
+   ```
    pip install -r requirements.txt
-```
+   ```
 
 ## Usage
+
+### Command-line (terminal)
 
 Run from the project root:
 
@@ -63,7 +70,37 @@ python src\app.py
 
 A webcam window opens with a green box and a mood label (e.g. `Positive (87%)`) over each detected face. Press **q** in the window to quit.
 
+You can also process images or videos directly:
+
+| Command | Description |
+|---|---|
+| `python src\app.py photo.jpg` | Analyze a single image from the `inputs/` folder |
+| `python src\app.py all` | Process all images in the `inputs/` folder |
+| `python src\app.py pick` | Open a file picker to select an image or video |
+
+Supported image formats: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`
+
+Labeled output images are saved to the `outputs/` folder automatically.
+
 > On the **first run**, DeepFace downloads its emotion model (~6 MB), so it needs internet and takes a little longer to start. After that it runs offline.
+
+### Web frontend
+
+The project includes a browser-based UI with live camera mode and image upload.
+
+**1. Start the API server** from the project root:
+```
+python api.py
+```
+
+**2. Open the frontend** — simply open `frontend/index.html` in your browser.
+
+The UI will show a **connected** indicator in the top-right once it reaches the API. From there you can:
+
+- **Camera mode** — streams your webcam to the API and shows mood labels live
+- **Upload mode** — drag and drop (or browse for) an image and click **Analyze**
+
+The API runs on `http://localhost:5000` by default. You can change this in the URL bar at the top of the frontend page.
 
 ## Notes
 
@@ -76,6 +113,7 @@ A webcam window opens with a green box and a mood label (e.g. `Positive (87%)`) 
 - OpenCV — face detection
 - DeepFace + TensorFlow / tf-keras — emotion classification
 - NumPy
+- Flask + flask-cors — REST API for the web frontend
 
 ## Team
 

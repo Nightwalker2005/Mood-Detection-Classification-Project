@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MoodScan</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+<script src="app.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🧠</div>
+    <div class="logo-text">Mood<span>Scan</span></div>
+  </div>
+  <div class="status-dot">
+    <div class="dot" id="server-dot"></div>
+    <span id="server-status">checking...</span>
+  </div>
+</header>
+
+<main>
+  <h1>Detect <em>emotions</em><br>in real time.</h1>
+  <p class="subtitle">// powered by DeepFace + OpenCV</p>
+
+  <!-- Mode Toggle -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn-camera" onclick="setMode('camera')">
+      📷 Camera
+    </button>
+    <button class="mode-btn" id="btn-upload" onclick="setMode('upload')">
+      🖼 Upload
+    </button>
+  </div>
+
+  <div class="workspace">
+    <!-- Left: Viewer -->
+    <div class="viewer">
+      <div class="viewer-header">
+        <span id="viewer-label">LIVE FEED</span>
+        <span id="frame-counter" style="font-size:11px;">—</span>
+      </div>
+
+      <div class="viewer-body" id="viewer-body">
+
+        <!-- Camera mode -->
+        <div id="camera-panel">
+          <video id="webcam-raw" autoplay playsinline muted style="display:none;"></video>
+          <canvas id="overlay-canvas" style="width:100%; display:none;"></canvas>
+          <canvas id="capture-canvas" style="display:none;"></canvas>
+          <div class="placeholder" id="cam-placeholder">
+            <div class="placeholder-icon">📷</div>
+            <p>Click <strong>Start Camera</strong><br>to begin live mood detection</p>
+          </div>
+        </div>
+
+        <!-- Upload mode -->
+        <div id="upload-panel" style="display:none; width:100%;">
+          <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.bmp,.webp" onchange="handleFileSelect(event)" />
+            <div class="upload-icon">🖼</div>
+            <p>Drop an image here or click to browse</p>
+            <strong>JPG · PNG · BMP · WEBP</strong>
+          </div>
+          <img id="preview-img" style="display:none; width:100%; max-height:480px; object-fit:contain;" alt="Preview" />
+        </div>
+
+        <!-- Loading overlay -->
+        <div class="spinner" id="spinner">
+          <div class="spin-ring"></div>
+          <div class="spin-text">Analyzing...</div>
+        </div>
+      </div>
+
+      <!-- Camera controls -->
+      <div class="cam-controls" id="cam-controls">
+        <button class="btn btn-primary" id="btn-start-cam" onclick="startCamera()">▶ Start Camera</button>
+        <button class="btn btn-secondary" id="btn-stop-cam" onclick="stopCamera()" style="display:none;">⏹ Stop</button>
+        <div class="live-badge" id="live-badge" style="display:none;">
+          <div class="live-dot"></div> LIVE
+        </div>
+      </div>
+
+      <!-- Upload controls -->
+      <div class="viewer-actions" id="upload-controls" style="display:none;">
+        <button class="btn btn-primary" id="btn-analyze-img" onclick="analyzeImage()" disabled>🔍 Analyze</button>
+        <button class="btn btn-secondary" onclick="clearImage()">✕ Clear</button>
+      </div>
+    </div>
+
+    <!-- Right: Results -->
+    <div class="results-panel">
+      <div class="panel-card">
+        <div class="panel-title">Detection Results</div>
+        <div class="panel-body" id="results-body">
+          <div class="no-results">No faces detected yet</div>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-title">Session Stats</div>
+        <div class="panel-body">
+          <div class="stat-row">
+            <span class="stat-label">Frames analyzed</span>
+            <span class="stat-val" id="stat-frames">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Faces detected</span>
+            <span class="stat-val" id="stat-faces">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Mode</span>
+            <span class="stat-val" id="stat-mode">Camera</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
