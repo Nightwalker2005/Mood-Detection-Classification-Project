@@ -8,6 +8,10 @@ import cv2
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
+# Set environment variables before importing DeepFace/TensorFlow
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+os.environ["DEEPFACE_HOME"] = os.environ.get("DEEPFACE_HOME", "C:/deepface")
+
 # Add src/ to path so we can import from it
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
@@ -25,9 +29,11 @@ CORS(app)
 def index():
     return send_from_directory(FRONTEND_DIR, "index.html")
 
+
 @app.route("/<path:filename>")
 def static_files(filename):
     return send_from_directory(FRONTEND_DIR, filename)
+
 
 def decode_image(data):
     """Decode a base64 image string or raw bytes into an OpenCV image."""
@@ -48,8 +54,8 @@ def analyze_image(image):
         mood, confidence = predict_mood(face_crop)
         results.append({
             "mood": mood,
-            "confidence": round(float(confidence) * 100, 1),
-            "box": {"x": int(x), "y": int(y), "w": int(w), "h": int(h)},
+            "confidence": round(confidence * 100, 1),
+            "box": {"x": x, "y": y, "w": w, "h": h},
         })
     return results
 
@@ -108,9 +114,10 @@ def health():
 
 
 if __name__ == "__main__":
-    port = 5000
-    url = f"http://127.0.0.1:{port}"
-    # Open the browser after a short delay so the server is ready
-    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
-    print(f"Starting MoodScan — opening {url} in your browser...")
+    port = int(os.environ.get("PORT", 5000))
+    # Only open browser when running locally (not on Render)
+    if not os.environ.get("RENDER"):
+        url = f"http://127.0.0.1:{port}"
+        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+        print(f"Starting MoodScan — opening {url} in your browser...")
     app.run(host="0.0.0.0", port=port, debug=False)

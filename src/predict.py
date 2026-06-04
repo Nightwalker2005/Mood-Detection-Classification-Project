@@ -1,6 +1,6 @@
 import os
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
-os.environ["DEEPFACE_HOME"] = "C:/deepface"
+os.environ["DEEPFACE_HOME"] = os.environ.get("DEEPFACE_HOME", "C:/deepface")
 
 from deepface import DeepFace
 

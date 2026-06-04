@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: moodscan
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn api:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+    envVars:
+      - key: TF_USE_LEGACY_KERAS
+        value: "1"
+      - key: DEEPFACE_HOME
+        value: /tmp/deepface
+      - key: PYTHON_VERSION
+        value: 3.13.0
