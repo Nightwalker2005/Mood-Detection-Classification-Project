@@ -1,37 +1,52 @@
 import os
-os.environ["TF_USE_LEGACY_KERAS"] = "1"      # match predict.py (DeepFace + Keras 3)
-os.environ["DEEPFACE_HOME"] = "C:/deepface"  # store weights in an ASCII-only path
-
 import cv2
-from deepface import DeepFace
 
-# Detector DeepFace uses. "yunet" is fast and handles angled/multiple faces well.
-# Alternatives: "retinaface" (most accurate but slower), "ssd", "mtcnn", "opencv".
-DETECTOR = "yunet"
+# YuNet face detector (the same model the project used before, via OpenCV directly).
+MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
+MODEL_PATH = os.path.join(MODEL_DIR, "face_detection_yunet.onnx")
+
+SCORE_THRESHOLD = 0.9
+NMS_THRESHOLD = 0.3
+TOP_K = 5000
+
+_detector = None
+
+
+def _get_detector():
+    """Lazily create the YuNet detector (reused across calls)."""
+    global _detector
+    if _detector is None:
+        _detector = cv2.FaceDetectorYN.create(
+            MODEL_PATH, "", (320, 320),
+            SCORE_THRESHOLD, NMS_THRESHOLD, TOP_K,
+        )
+    return _detector
 
 
 def detect_faces(image):
-    """Detect faces with DeepFace. Returns a list of (x, y, w, h) boxes."""
+    """Detect faces with YuNet. Returns a list of (x, y, w, h) boxes."""
     try:
-        found = DeepFace.extract_faces(
-            image,
-            detector_backend=DETECTOR,
-            enforce_detection=False,   # don't crash when no face is found
-            align=False,
-        )
+        H, W = image.shape[:2]
+        detector = _get_detector()
+        detector.setInputSize((W, H))
+        _, faces = detector.detect(image)
     except Exception:
+        return []
+
+    if faces is None:
         return []
 
     boxes = []
     H, W = image.shape[:2]
-    for f in found:
-        if f.get("confidence", 1) <= 0:     # skip the "no face found" fallback
-            continue
-        a = f["facial_area"]
-        x, y, w, h = a["x"], a["y"], a["w"], a["h"]
-        if w >= W and h >= H:               # skip whole-image fallback too
-            continue
-        boxes.append((x, y, w, h))
+    for f in faces:
+        x, y, w, h = int(f[0]), int(f[1]), int(f[2]), int(f[3])
+        # Clamp to image bounds; YuNet can return slightly out-of-frame coords.
+        x = max(x, 0)
+        y = max(y, 0)
+        w = min(w, W - x)
+        h = min(h, H - y)
+        if w > 0 and h > 0:
+            boxes.append((x, y, w, h))
     return boxes
 
 
@@ -58,21 +73,3 @@ def extract_faces(image, padding=0):
         if x2 > x1 and y2 > y1:
             results.append((image[y1:y2, x1:x2], (x, y, w, h)))
     return results
-
-
-if __name__ == "__main__":
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Could not open webcam.")
-        exit()
-    print("Webcam running — press 'q' to quit.")
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            break
-        frame = draw_faces(frame, detect_faces(frame))
-        cv2.imshow("Face Detection (press q to quit)", frame)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-    cap.release()
-    cv2.destroyAllWindows()

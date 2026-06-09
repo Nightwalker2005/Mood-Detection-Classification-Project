@@ -1,12 +1,29 @@
 venv/
+.venv/
+.testvenv/
+env/
 __pycache__/
 *.pyc
+*.pyo
 .vscode/
 .DS_Store
 *.h5
 *.keras
+*.pt
+*.pth
+*.onnx
+# ...but DO commit the small inference models the app needs
+!models/*.onnx
+
 # Input media and generated outputs (keep the folders, ignore their contents)
 inputs/*
 !inputs/.gitkeep
 outputs/*
 !outputs/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment files
+.env
+.env.local

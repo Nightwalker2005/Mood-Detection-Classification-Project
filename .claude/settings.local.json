@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"E:\\\\Mood-Detection-Classification-Project\"; $ErrorActionPreference='Stop'; $y=\"https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx\"; $f=\"https://github.com/onnx/models/raw/main/validated/vision/body_analysis/emotion_ferplus/model/emotion-ferplus-8.onnx\"; try { Invoke-WebRequest -Uri $y -OutFile \"models\\\\face_detection_yunet.onnx\"; \"YuNet OK: \" + [math]::Round\\(\\(Get-Item models\\\\face_detection_yunet.onnx\\).Length/1KB,1\\) + \" KB\" } catch { \"YuNet FAILED: $_\" }; try { Invoke-WebRequest -Uri $f -OutFile \"models\\\\emotion-ferplus-8.onnx\"; \"FER+ OK: \" + [math]::Round\\(\\(Get-Item models\\\\emotion-ferplus-8.onnx\\).Length/1MB,2\\) + \" MB\" } catch { \"FER+ FAILED: $_\" })"
+    ]
+  }
+}

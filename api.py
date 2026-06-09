@@ -108,9 +108,8 @@ def health():
 
 
 if __name__ == "__main__":
-    port = 5000
+    port = int(os.environ.get("PORT", 5000))
     url = f"http://127.0.0.1:{port}"
-    # Open the browser after a short delay so the server is ready
     threading.Timer(1.5, lambda: webbrowser.open(url)).start()
     print(f"Starting MoodScan — opening {url} in your browser...")
     app.run(host="0.0.0.0", port=port, debug=False)
