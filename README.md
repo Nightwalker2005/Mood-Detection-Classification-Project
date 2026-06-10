@@ -41,7 +41,7 @@ requirements.txt      # Python dependencies
 
 ## Setup
 
-**Requires Python 3.13** (TensorFlow does not yet support Python 3.14).
+**Requires Python 3.12**.
 
 1. Clone the repository:
    ```
@@ -49,9 +49,9 @@ requirements.txt      # Python dependencies
    cd Mood-Detection-Classification-Project
    ```
 
-2. Create and activate a virtual environment with Python 3.13:
+2. Create and activate a virtual environment with Python 3.12:
    ```
-   py -3.13 -m venv venv
+   py -3.12 -m venv venv
    venv\Scripts\activate
    ```
 
@@ -126,7 +126,7 @@ The **Detection Results** panel shows each detected face with its mood and a con
 
 ## Tech Stack
 
-- Python 3.13
+- Python 3.12
 - OpenCV — image processing
 - DeepFace + TensorFlow / tf-keras — face detection and emotion classification
 - NumPy
